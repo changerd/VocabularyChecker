@@ -1,13 +1,12 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Microsoft.EntityFrameworkCore;
-using System.Text;
 using VocabularyChecker.Data;
 
 
 
 try
 {
-    ApplicationDbContext _context = new ApplicationDbContext();
+    await using var _context = new ApplicationDbContext();
     bool isWordCheck = true;
 
     while (true)
@@ -15,7 +14,6 @@ try
         Console.WriteLine("Mode: \n0.Vocabulary \n1. Check by words \n2. Check by translate");
         Console.Write("Select: ");
         string mode = Console.ReadLine();
-        
 
         switch (mode)
         {
@@ -33,36 +31,32 @@ try
         }
 
         break;
-    }   
+    }
 
     int countWords = await _context.Vocabulary.CountAsync();
 
     Console.Write($"Count of words (Available: {countWords}): ");
-    int userCountWords = int.Parse( Console.ReadLine() );
-    Console.WriteLine();
-
-    List<Vocabulary> vocabulary = new List<Vocabulary>();
-    StringBuilder sql = new StringBuilder();
+    if (!int.TryParse(Console.ReadLine(), out int userCountWords) || userCountWords <= 0)
+    {
+        Console.WriteLine("Invalid number entered.");
+        return;
+    }
 
     if (userCountWords > countWords)
     {
-        sql.Append("SELECT * ");
-    }
-    else
-    {        
-        sql.Append($"SELECT TOP {userCountWords} * ");           
+        userCountWords = countWords;
     }
 
-    sql.Append("FROM Vocabulary ");
-    sql.Append("ORDER BY NEWID() ");
-    vocabulary = await _context.Vocabulary.FromSqlRaw(sql.ToString()).ToListAsync();
+    var vocabulary = await _context.Vocabulary
+        .OrderBy(v => EF.Functions.Random())
+        .Take(userCountWords)
+        .ToListAsync();
 
     int ind = 1;
 
     foreach (var item in vocabulary)
     {
-        
-        if(isWordCheck)
+        if (isWordCheck)
         {
             Console.WriteLine($"{ind}. {item.Word}");
             Console.Write("Ask: ");
@@ -83,7 +77,7 @@ try
     Console.WriteLine("The end!");
     Console.ReadKey();
 }
-catch(Exception ex)
+catch (Exception ex)
 {
     Console.WriteLine(ex.Message);
 }
